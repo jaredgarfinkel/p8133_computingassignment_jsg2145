@@ -1,0 +1,134 @@
+---
+title: "20201023-p8133_computingassignment_jsg2145"
+author: "Jared Garfinkel"
+date: "10/23/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(viridis)
+knitr::opts_chunk$set(
+	echo = TRUE,
+	warning = FALSE,
+	message = FALSE,
+	fig.width = 8, 
+  fig.height = 6,
+  out.width = "90%"
+)
+options(
+  ggplot2.continuous.colour = "viridis",
+  ggplot2.continuous.fill = "viridis"
+)
+scale_colour_discrete = scale_colour_viridis_d
+scale_fill_discrete = scale_fill_viridis_d
+theme_set(theme_minimal() + theme(legend.position = "bottom"))
+```
+
+# Question 1
+
+## Part a
+
+```{r typeIerror}
+output = NULL
+typeIerr = function(n = 10000) {
+  sim_dat = rbinom(n, 20, .25)
+  
+  for (i in 1:n) {
+    if (sim_dat[[i]] > 5) {
+      output = rbind(output, sim_dat[[i]])
+    }
+  }
+  
+  typeIerror = nrow(output)/n
+  return(typeIerror)
+}
+
+typeIerror = typeIerr()
+```
+
+The type I error rate under the null, response rate = 0.25, is `r typeIerror`.
+
+```{r}
+output = NULL
+pow = function(n = 10000) {
+  sim_dat = rbinom(n, 20, .4)
+  
+  for (i in 1:n) {
+    if (sim_dat[[i]] > 5) {
+      output = rbind(output, sim_dat[[i]])
+    }
+  }
+  
+  power = nrow(output)/n
+  return(power)
+}
+
+power = pow()
+```
+
+The power under the alternative, response rate = 0.4, is `r power`.
+
+```{r}
+# The expected sample size is equal to 20 times the proportion of times the futility trial threshold is not reached plus 71 times the proportion of times the futility trial threshold is reached
+
+exp_ss = 20*typeIerror + 71*(1-typeIerror)
+```
+
+The expected sample size under these simulations is `r exp_ss`, or `r ceiling(exp_ss)`.
+
+## Part b
+
+```{r}
+gonogo = function(stage1, stage2, null, alt, n1, n2) {
+  res = vector(mode = "list", length = stage1)
+  for(i in 1:stage1) {
+    for(j in 1:stage2){
+      res[[c(i,j)]] = bind_cols("n1_response" = i, "n2_response" = j-i)
+    }
+    res[[i]] = map(res[[i]], ~bind_rows(.))
+  }
+
+  sum_df = bind_rows(res) %>% 
+    mutate(errorI = dbinom(n1_response, stage1, null) * dbinom(n2_response, stage2, null),
+           power = dbinom(n1_response, stage1, alt) * dbinom(n2_response, stage2, alt)) %>%
+    filter(n1_response > n1-1,
+           n1_response + n2_response > n2-1) %>% 
+    summarize(sum_error = sum(errorI),
+              sum_power = sum(power))
+  
+  return(sum_df)
+}
+```
+
+```{r}
+sum_df = gonogo(stage1 = 20, stage2 = 51, null = .25, alt = 0.4, n1 = 6, n2 = 24)
+```
+
+The type I error rate under the null is `r round(pull(sum_df, sum_error), 4)`.
+
+The power under the alternative is `r round(pull(sum_df, sum_power), 4)`
+
+The expected number of drugs given a go decision is the number of drugs that work times the power (the probability of rejecting the null under the alternative) plus the number of drugs that don't work times the type I error rate (the probability of rejecting the null when the null is true).
+
+```{r}
+exp_godrug = 5*pull(sum_df, sum_power) + 95*pull(sum_df, sum_error)
+```
+
+
+So the expected number of drugs given a go decision can be calculated to be `r round(exp_godrug, 4)` or `r ceiling(exp_godrug)`.
+
+The expected number of patients enrolled to the trial is the number of expected patients in each trial times 100.
+
+The expected number of patients in each trial is the size of the futility trial times the type I error plus the size of the two-stage trial when the futility threshold is reached.
+
+```{r}
+exp_ssnull = 20*pbinom(5, 20, .25) + 71*(1-pbinom(5, 20, .25))
+exp_ssalt = 20*pbinom(5, 20, .4) + 71*(1-pbinom(5, 20, .4))
+exp_ss2 = 5/100*exp_ssalt + 95/100*exp_ssnull
+```
+
+The expected value of each trial is `r round(exp_ss2, 4)` or `r ceiling(exp_ss2)`.
+
+So, the expected number of patients for all trials is about 4077.
+
