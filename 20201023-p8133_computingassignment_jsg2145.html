@@ -398,7 +398,7 @@ summary {
 }
 
 typeIerror = typeIerr()</code></pre>
-<p>The type I error rate under the null, response rate = 0.25, is 0.3787.</p>
+<p>The type I error rate under the null, response rate = 0.25, is 0.3856.</p>
 <pre class="r"><code>output = NULL
 pow = function(n = 10000) {
   sim_dat = rbinom(n, 20, .4)
@@ -414,11 +414,11 @@ pow = function(n = 10000) {
 }
 
 power = pow()</code></pre>
-<p>The power under the alternative, response rate = 0.4, is 0.8713.</p>
+<p>The power under the alternative, response rate = 0.4, is 0.8762.</p>
 <pre class="r"><code># The expected sample size is equal to 20 times the proportion of times the futility trial threshold is not reached plus 71 times the proportion of times the futility trial threshold is reached
 
 exp_ss = 20*typeIerror + 71*(1-typeIerror)</code></pre>
-<p>The expected sample size under these simulations is 51.6863, or 52.</p>
+<p>The expected sample size under these simulations is 51.3344, or 52.</p>
 </div>
 <div id="part-b" class="section level2">
 <h2>Part b</h2>
@@ -555,10 +555,8 @@ res %&gt;%
   mutate(alpha = 1 - length(x)/nrow(goutput)) %&gt;% 
   select(x, alpha) %&gt;% 
   distinct() %&gt;% 
-  filter(alpha &lt; .21)
-
-
-# x = seq(from = 0.01, to = .4, by = .003)
+  filter(alpha &lt; .21)</code></pre>
+<pre class="r"><code># x = seq(from = 0.01, to = .4, by = .003)
 # output %&gt;% 
 #   mutate(pS1 = dbeta(.25+x, 25, 75),
 #          pS2 = dbeta(.25+x, 25, 75)</code></pre>
@@ -578,36 +576,30 @@ res %&gt;%
     mutate(alpha = 1 - length(x)/nrow(goutput)) %&gt;% 
     select(x, alpha) %&gt;% 
     distinct() %&gt;% 
-    filter(alpha &lt; .21)
+    filter(alpha &lt; .2)
   return(res)
 }
 res = prior()</code></pre>
-<p>According to my calculations, a delta of 0.133 and an alpha of approximately 0.154 will result in a go decision when the 1st stage trial has a response rate equal to or greater than 6.</p>
+<p>According to my calculations, a delta of 0.151 and an alpha of approximately 0.167 will result in a go decision when the 1st stage trial has a response rate equal to or greater than 6.</p>
 <pre class="r"><code>set.seed(1)
 n_sim = 10e5
-sum(rbeta(n_sim, shape1 = 6.5, shape2 = 15.5) &gt; (rbeta(n_sim, shape1 = 25, shape2 = 75) + 0.133)) / n_sim</code></pre>
-<pre><code>## [1] 0.199881</code></pre>
-<pre class="r"><code>sum(rbeta(n_sim, shape1 = 5.5, shape2 = 16.5) &gt; (rbeta(n_sim, shape1 = 25, shape2 = 75) + 0.133)) / n_sim</code></pre>
-<pre><code>## [1] 0.099156</code></pre>
+sum(rbeta(n_sim, shape1 = 6.5, shape2 = 15.5) &gt; (rbeta(n_sim, shape1 = 25, shape2 = 75) + 0.151)) / n_sim</code></pre>
+<pre><code>## [1] 0.158776</code></pre>
+<pre class="r"><code>sum(rbeta(n_sim, shape1 = 5.5, shape2 = 16.5) &gt; (rbeta(n_sim, shape1 = 25, shape2 = 75) + 0.151)) / n_sim</code></pre>
+<pre><code>## [1] 0.074492</code></pre>
 <p>A simulation confirms that when the response rate is 6, the alpha is greater than .154, and when the response rate is 5, the alpha is less than 0.154.</p>
 </div>
 <div id="question-3" class="section level1">
 <h1>Question 3</h1>
-<pre class="r"><code>output1 = vector(mode = &quot;list&quot;, length = 20)
-for(i in 1:20) {
-  output1[[i]] = bind_cols(&quot;n1_response&quot; = i)
-  output1[[i]]$x = list(seq(from = 0.01, to = 0.4, by = 0.003))
-}
-
-output1 = bind_rows(output1) %&gt;% 
-  unnest(x) %&gt;% 
-  nest(x)
-
-goutput1 = output1 %&gt;% 
-  filter(n1_response &gt; 5)</code></pre>
+<p>The stopping boundary should be set such that given a delta and alpha pair, the response rate at or above the boundary will result in a go decision and below the boundary will result in a no-go decision. The first stopping boundary is given as <span class="math inline">\(S_{20} = 6\)</span>. The decision rule should be such that the delta and alpha can be applied to each interim analysis and achieve the final go decision of <span class="math inline">\(S_{71} = 24\)</span></p>
+<p>Given:</p>
+<p>pE ~ beta(0.5, 1.5) pS ~ beta(25, 75) <span class="math inline">\(\delta\)</span> = ? <span class="math inline">\(\alpha\)</span> = ?</p>
+<p>After the first 20 patients, pE ~ beta(0.5 + <span class="math inline">\(n_1\)</span>, 1.5 + 20 - <span class="math inline">\(n_1\)</span>), where <span class="math inline">\(n_1\)</span> is the number of responses in the first stage.</p>
+<p>After 40 patients, pE ~ beta(0.5 + <span class="math inline">\(n_1 + n_2\)</span>, 1.5 + 40 - <span class="math inline">\((n_1 + n_2)\)</span>).</p>
+<p>pE is updated at 60 patients and 71 patients.</p>
 <pre class="r"><code>output2 = vector(mode = &quot;list&quot;, length = 400)
 for (i in 1:20) {
-  for (j in 1:51) {
+  for (j in 1:20) {
     output2[[c(i, j)]] = bind_cols(&quot;n1_response&quot; = i, &quot;n2_response&quot; = j)
     output2[[c(i, j)]]$x = list(seq(from = 0.01, to = 0.4, by = 0.003))
   }
@@ -615,244 +607,258 @@ for (i in 1:20) {
 }
 
 
-output2 = bind_rows(output2) %&gt;% 
+df2 = bind_rows(output2) %&gt;% 
   unnest(x) %&gt;% 
-  nest(x)
-
-goutput2 = output2 %&gt;% 
+  mutate(id = row_number()) %&gt;% 
+  nest(c(n1_response:x))
+df2</code></pre>
+<pre><code>## # A tibble: 52,400 x 2
+##       id data            
+##    &lt;int&gt; &lt;list&gt;          
+##  1     1 &lt;tibble [1 x 3]&gt;
+##  2     2 &lt;tibble [1 x 3]&gt;
+##  3     3 &lt;tibble [1 x 3]&gt;
+##  4     4 &lt;tibble [1 x 3]&gt;
+##  5     5 &lt;tibble [1 x 3]&gt;
+##  6     6 &lt;tibble [1 x 3]&gt;
+##  7     7 &lt;tibble [1 x 3]&gt;
+##  8     8 &lt;tibble [1 x 3]&gt;
+##  9     9 &lt;tibble [1 x 3]&gt;
+## 10    10 &lt;tibble [1 x 3]&gt;
+## # ... with 52,390 more rows</code></pre>
+<pre class="r"><code>prior2 = function(df, null = 0.25, stage1n = 20, stage2n = 40, n1 = 6, n2 = 12) {
+  res = df %&gt;% 
+    # unnest(data) %&gt;% 
+    mutate(pE1 = dbeta(null, (0.5+n1_response/stage1n), (1.5+stage1n-n1_response)/stage1n),
+           pE2 = dbeta(null, (0.5+n1_response+n2_response)/stage2n, (1.5+stage2n-n1_response-n2_response)/stage2n),
+           pS = dbeta(null+x, 25, 75)) %&gt;% 
+    filter(n1_response &gt; n1-1,
+           (n1_response + n2_response) &gt; n2-1)
+  # res = bind_rows(res) %&gt;%
+  #   filter(pE1 &gt; pS,
+  #          pE2 &gt; pS) %&gt;%
+  #   group_by(x) %&gt;%
+  #   summarize(x = x,
+  #             alpha = length(x)/n())
+  #   filter(alpha &lt; .2)
+  return(res)
+}</code></pre>
+<pre class="r"><code># prior2(df2$data[[1021]])</code></pre>
+<pre class="r"><code>map_df2 = df2 %&gt;% 
+  mutate(data2 = map(data, prior2))</code></pre>
+<pre class="r"><code>map_df2 %&gt;% 
+  unnest(data2) %&gt;%
+  # group_by(x) %&gt;%
+  # summarize(n = n(),
+  #           alpha = sum(pE1 &gt; pS &amp; pE2 &gt; pS &amp; n1_response &gt; 5 &amp; (n1_response + n2_response) &gt; 11)) %&gt;% 
+  # group_by(x) %&gt;% 
+  # summarize(alpha = 1-alpha/n)
   filter(n1_response &gt; 5,
-         (n1_response + n2_response) &gt; 11)</code></pre>
+         (n1_response + n2_response) &gt; 11,
+         pE1 &gt; pS,
+         pE2 &gt; pS) %&gt;%
+  group_by(x) %&gt;%
+  summarize(n = n(),
+            alpha = 1 - n/285) %&gt;%
+            # alpha = 1 - n/nrow(df2)) %&gt;%
+  filter(alpha &lt; 0.21) %&gt;%
+  distinct()</code></pre>
+<pre><code>## # A tibble: 90 x 3
+##        x     n  alpha
+##    &lt;dbl&gt; &lt;int&gt;  &lt;dbl&gt;
+##  1 0.133   244 0.144 
+##  2 0.136   245 0.140 
+##  3 0.139   245 0.140 
+##  4 0.142   265 0.0702
+##  5 0.145   265 0.0702
+##  6 0.148   265 0.0702
+##  7 0.151   285 0     
+##  8 0.154   285 0     
+##  9 0.157   285 0     
+## 10 0.16    285 0     
+## # ... with 80 more rows</code></pre>
 <pre class="r"><code>output3 = vector(mode = &quot;list&quot;, length = 8000)
 for (i in 1:20) {
   for (j in 1:20) {
     output3[[c(i, j)]] = bind_cols(&quot;n1_response&quot; = i, &quot;n2_response&quot; = j)
     output3[[c(i, j)]]$k = list(seq(from = 1, to = 20))
-    output3[[c(i, j)]]$x = list(seq(from = .01, to = 0.4, by = 0.003))
+    output3[[c(i, j)]]$x = list(seq(from = .1, to = 0.199, by = 0.003))
   }
   output3[[i]] = map(output3[[i]], ~bind_rows(.))
 }
 
-output3 = bind_rows(output3) %&gt;% 
+df3 = bind_rows(output3) %&gt;% 
   rename(&quot;n3_response&quot; = k) %&gt;% 
   unnest(n3_response) %&gt;% 
   unnest(x) %&gt;% 
-  nest(x)
-
-goutput3 = output3 %&gt;% 
-  filter(n1_response &gt; 5,
-         (n1_response + n2_response) &gt; 11,
-         (n1_response + n2_response + n3_response) &gt; 17)</code></pre>
+  mutate(id = row_number()) %&gt;% 
+  nest(n1_response:x)</code></pre>
+<pre class="r"><code>prior3 = function(df = df3, null = 0.25, stage1n = 20, stage2n = 40, stage3n = 60, n1 = 6, n2 = 12, n3 = 18) {
+  res2 = df %&gt;% 
+    # unnest(data) %&gt;% 
+    mutate(pE1 = dbeta(null, (0.5+n1_response)/stage1n, (1.5+stage1n-n1_response)/stage1n),
+           pE2 = dbeta(null, (0.5+n1_response+n2_response)/stage2n, (1.5+stage2n-n1_response-n2_response)/stage2n),
+           pE3 = dbeta(null, (0.5+n1_response + n2_response + n3_response)/stage3n, (1.5+stage3n-n1_response-n2_response-n3_response)/stage3n),
+           pS = dbeta(null+x, 25, 75))
+    # filter(n1_response &gt; n1-1,
+    #        (n1_response + n2_response) &gt; n2-1,
+    #        (n1_response + n2_response + n3_response) &gt; n3-1)
+  # res = res %&gt;%
+  #   filter(pE3 &gt; pS) %&gt;%
+  #   group_by(x) %&gt;%
+  #   mutate(alpha = 1 - length(x)/nrow(goutput3)) %&gt;%
+  #   select(x, alpha) %&gt;%
+  #   distinct() %&gt;%
+  #   filter(alpha &lt; .2)
+  return(res2)
+}</code></pre>
+<pre class="r"><code>map_df3 = df3 %&gt;% 
+  mutate(data3 = map(data, prior3))</code></pre>
+<pre class="r"><code>map_df3 %&gt;% 
+  unnest(data3) %&gt;%
+  # group_by(x) %&gt;% 
+  # summarize(n = n())
+  filter(pE1 &gt; pS,
+         pE2 &gt; pS,
+         pE3 &gt; pS) %&gt;%
+  group_by(x) %&gt;%
+  summarize(n = n(),
+            alpha = 1 - n/5590) %&gt;%
+            # alpha = 1 - n/nrow(df2)) %&gt;%
+  filter(alpha &lt; 0.21) %&gt;%
+  distinct()</code></pre>
+<pre><code>## # A tibble: 30 x 3
+##        x     n    alpha
+##    &lt;dbl&gt; &lt;int&gt;    &lt;dbl&gt;
+##  1 0.112  5127  0.0828 
+##  2 0.115  5608 -0.00322
+##  3 0.118  6139 -0.0982 
+##  4 0.121  6610 -0.182  
+##  5 0.124  7051 -0.261  
+##  6 0.127  7118 -0.273  
+##  7 0.13   7467 -0.336  
+##  8 0.133  7530 -0.347  
+##  9 0.136  7573 -0.355  
+## 10 0.139  7578 -0.356  
+## # ... with 20 more rows</code></pre>
 <pre class="r"><code>output4 = vector(mode = &quot;list&quot;, length = 88000)
 for (i in 1:20) {
   for(j in 1:20) {
     output4[[c(i, j)]] = bind_cols(&quot;n1_response&quot; = i, &quot;n2_response&quot; = j)
     output4[[c(i, j)]]$k = list(seq(from = 1, to = 20))
     output4[[c(i, j)]]$l = list(seq(from = 1, to = 11))
-    output4[[c(i, j)]]$x = list(seq(from = .01, to = 0.4, by = 0.003))
+    output4[[c(i, j)]]$x = list(seq(from = .1, to = 0.298, by = 0.003))
+    output4[[c(i, j)]]$n1 = 6
+    output4[[c(i, j)]]$n2 = list(seq(12, 14))
+    output4[[c(i, j)]]$n3 = list(seq(18, 20))
+    output4[[c(i, j)]]$n4 = 24
   }
   output4[[i]] = map(output4[[i]], ~bind_rows(.))
-}
-
-output4 = bind_rows(output4) %&gt;% 
+}</code></pre>
+<pre class="r"><code>df4 = bind_rows(output4) %&gt;% 
   rename(&quot;n3_response&quot; = k,
          &quot;n4_response&quot; = l) %&gt;%
-  unnest(n3_response) %&gt;% 
-  unnest(n4_response) %&gt;% 
-  unnest(x) %&gt;% 
-  nest(x)
-
-goutput4 = output4 %&gt;% 
-  filter(n1_response &gt; 5,
-         (n1_response + n2_response) &gt; 11,
-         (n1_response + n2_response + n3_response) &gt; 17,
-         (n1_response + n2_response + n3_response + n4_response) &gt; 23)</code></pre>
-<pre class="r"><code>prior1 = function(df = output1, null = 0.25, stage1n = 20, n1 = 6) {
-  res = df %&gt;% 
-    unnest(data) %&gt;% 
-    mutate(pE1 = dbeta(null, n1_response/stage1n, (stage1n-n1_response)/stage1n),
-           pS = dbeta(null+x, 25, 75)) %&gt;% 
-    filter(n1_response &gt; n1-1)
-  res1 = res %&gt;%
-    filter(pE1 &gt; pS) %&gt;%
-    group_by(x) %&gt;%
-    mutate(alpha = 1 - length(x)/nrow(goutput1)) %&gt;%
-    select(x, alpha) %&gt;%
-    distinct() %&gt;%
-    filter(alpha &lt; .2)
-  return(res1)
-}</code></pre>
-<pre class="r"><code>prior2 = function(df = output2, null = 0.25, stage1n = 20, stage2n = 40, n1 = 6, n2 = 12) {
-  res = df %&gt;% 
-    unnest(data) %&gt;% 
-    mutate(pE1 = dbeta(null, n1_response/stage1n, (stage1n-n1_response)/stage1n),
-           pE2 = dbeta(null, (n1_response+n2_response)/stage2n, (stage2n-n1_response-n2_response)/stage2n),
-           pS = dbeta(null+x, 25, 75)) %&gt;% 
-    filter(n1_response &gt; n1-1,
-           (n1_response + n2_response) &gt; n2-1)
-  res2 = res %&gt;%
-    filter(pE2 &gt; pS) %&gt;%
-    group_by(x) %&gt;%
-    mutate(alpha = 1 - length(x)/nrow(goutput2)) %&gt;%
-    select(x, alpha) %&gt;%
-    distinct() %&gt;%
-    filter(alpha &lt; .2)
-  return(res2)
-}</code></pre>
-<pre class="r"><code>prior3 = function(df = output3, null = 0.25, stage1n = 20, stage2n = 40, stage3n = 60, n1 = 6, n2 = 12, n3 = 18) {
-  res = df %&gt;% 
-    unnest(data) %&gt;% 
-    mutate(pE1 = dbeta(null, n1_response/stage1n, (stage1n-n1_response)/stage1n),
-           pE2 = dbeta(null, (n1_response+n2_response)/stage2n, (stage2n-n1_response-n2_response)/stage2n),
-           pE3 = dbeta(null, (n1_response + n2_response + n3_response)/stage3n, (stage3n-n1_response-n2_response-n3_response)/stage3n),
-           pS = dbeta(null+x, 25, 75)) %&gt;% 
-    filter(n1_response &gt; n1-1,
-           (n1_response + n2_response) &gt; n2-1,
-           (n1_response + n2_response + n3_response) &gt; n3-1)
-  res3 = res %&gt;%
-    filter(pE3 &gt; pS) %&gt;%
-    group_by(x) %&gt;%
-    mutate(alpha = 1 - length(x)/nrow(goutput3)) %&gt;%
-    select(x, alpha) %&gt;%
-    distinct() %&gt;%
-    filter(alpha &lt; .2)
-  return(res3)
-}</code></pre>
-<pre class="r"><code>prior4 = function(df = output4, null = 0.25, stage1n = 20, stage2n = 40, stage3n = 60, stage4n = 71, n1 = 6, n2 = 12, n3 = 18, n4 = 24) {
-  res = df %&gt;% 
-    unnest(data) %&gt;% 
-    mutate(pE1 = dbeta(null, n1_response/stage1n, (stage1n-n1_response)/stage1n),
-           pE2 = dbeta(null, (n1_response+n2_response)/stage2n, (stage2n-n1_response-n2_response)/stage2n),
-           pE3 = dbeta(null, (n1_response + n2_response + n3_response)/stage3n, (stage3n-n1_response-n2_response-n3_response)/stage3n),
-           pE4 = dbeta(null, (n1_response + n2_response + n3_response + n4_response)/stage4n, (stage4n-n1_response-n2_response-n3_response-n4_response)/stage4n),
+  unnest(n2) %&gt;% 
+  unnest(n3) %&gt;% 
+  mutate(id = paste0(n2, &quot;, &quot;, n3)) %&gt;% 
+  nest(-id)</code></pre>
+<pre class="r"><code># head(df4)</code></pre>
+<pre class="r"><code>prior4 = function(df = df4, null = 0.25, stage1n = 20, stage2n = 40, stage3n = 60, stage4n = 71) {
+  # res = vector(mode = &quot;list&quot;, length = 9)
+  # for (i in 1:3) {
+  #   for (j in 1:3) {
+  res4 = df %&gt;% 
+    unnest() %&gt;% 
+    mutate(pE1 = dbeta(null, (0.5+n1_response)/stage1n, (1.5+stage1n-n1_response)/stage1n),
+           pE2 = dbeta(null, (0.5+n1_response+n2_response)/stage2n, (1.5+stage2n-n1_response-n2_response)/stage2n),
+           pE3 = dbeta(null, (0.5+n1_response + n2_response + n3_response)/stage3n, (1.5+stage3n-n1_response-n2_response-n3_response)/stage3n),
+           pE4 = dbeta(null, (0.5+n1_response + n2_response + n3_response + n4_response)/stage4n, (1.5+stage4n-n1_response-n2_response-n3_response-n4_response)/stage4n),
            pS = dbeta(null+x, 25, 75)) %&gt;% 
     filter(n1_response &gt; n1-1,
            (n1_response + n2_response) &gt; n2-1,
            (n1_response + n2_response + n3_response) &gt; n3-1,
            (n1_response + n2_response + n3_response + n4_response) &gt; n4-1)
-  res4 = res %&gt;%
-    filter(pE4 &gt; pS) %&gt;%
-    group_by(x) %&gt;%
-    mutate(alpha = 1 - length(x)/nrow(goutput4)) %&gt;%
-    select(x, alpha) %&gt;%
-    distinct() %&gt;%
-    filter(alpha &lt; .2)
   return(res4)
 }</code></pre>
-<pre class="r"><code>prior1 = prior1()
-prior2 = prior2()
-prior3 = prior3()
-prior4 = prior4()
-
-prior1</code></pre>
-<pre><code>## # A tibble: 93 x 2
-## # Groups:   x [93]
-##        x  alpha
-##    &lt;dbl&gt;  &lt;dbl&gt;
-##  1 0.124 0.200 
-##  2 0.127 0.200 
-##  3 0.13  0.200 
-##  4 0.133 0.133 
-##  5 0.136 0.133 
-##  6 0.139 0.133 
-##  7 0.142 0.133 
-##  8 0.145 0.0667
-##  9 0.148 0.0667
-## 10 0.151 0.0667
-## # ... with 83 more rows</code></pre>
-<pre class="r"><code>prior2</code></pre>
-<pre><code>## # A tibble: 0 x 2
-## # Groups:   x [0]
-## # ... with 2 variables: x &lt;dbl&gt;, alpha &lt;dbl&gt;</code></pre>
-<pre class="r"><code>prior3</code></pre>
-<pre><code>## # A tibble: 97 x 2
-## # Groups:   x [97]
-##        x   alpha
-##    &lt;dbl&gt;   &lt;dbl&gt;
-##  1 0.112 0.146  
-##  2 0.115 0.100  
-##  3 0.118 0.0651 
-##  4 0.121 0.0512 
-##  5 0.124 0.0295 
-##  6 0.127 0.0215 
-##  7 0.13  0.0150 
-##  8 0.133 0.0100 
-##  9 0.136 0.00626
-## 10 0.139 0.00626
-## # ... with 87 more rows</code></pre>
-<pre class="r"><code>prior4</code></pre>
-<pre><code>## # A tibble: 98 x 2
-## # Groups:   x [98]
-##        x   alpha
-##    &lt;dbl&gt;   &lt;dbl&gt;
-##  1 0.109 0.189  
-##  2 0.112 0.115  
-##  3 0.115 0.0780 
-##  4 0.118 0.0500 
-##  5 0.121 0.0300 
-##  6 0.124 0.0166 
-##  7 0.127 0.0118 
-##  8 0.13  0.00546
-##  9 0.133 0.00347
-## 10 0.136 0.00208
-## # ... with 88 more rows</code></pre>
-<pre class="r"><code># pair_df[[2]] = res %&gt;%
-  #   filter(pE2 &gt; pS) %&gt;%
-  #   group_by(x) %&gt;%
-  #   mutate(alpha = 1 - length(x)/400) %&gt;%
-  #   select(x, alpha) %&gt;%
-  #   distinct() %&gt;%
-  #   filter(alpha &lt; .2)
-    
-# }
-  # for (i in 1:4) {
-  #   pair_df[[i]] = res %&gt;% 
-  #     select(pE1:pE4, x, pS) %&gt;% 
-  #     filter(res[[i]] &gt; pS) %&gt;% 
-  #     group_by(x) %&gt;% 
-  #     mutate(alpha = 1 - length(x)/) %&gt;%
-  #     select(x, alpha) %&gt;%
-  #     distinct() %&gt;%
-  #     filter(alpha &lt; .2)
-  # }
-  # return(pair_df)
-# }
-
-#   dapair = NULL
-#   for (i in 1:4){
-#     dapair[[i]] = res %&gt;%
-#       filter(paste0(&quot;pE&quot;, i) &gt; pS) %&gt;%
-#       group_by(x) %&gt;%
-#       mutate(alpha = 1 - length(x)/nrow(goutput2)) %&gt;%
-#       select(x, alpha) %&gt;%
-#       distinct() %&gt;%
-#       filter(alpha&lt;0.2)
-#   }
-#     return(dapair)
-# }
-
-#   res = res %&gt;%
-#     filter(pE1 &gt; pS) %&gt;%
-#     group_by(x) %&gt;%
-#     mutate(alpha = 1 - length(x)/nrow(goutput)) %&gt;%
-#     select(x, alpha) %&gt;%
-#     distinct() %&gt;%
-#     filter(alpha &lt; .2)
-#   return(res)
-# }
-
-
-# output %&gt;% 
-#   unnest(data)</code></pre>
-<pre class="r"><code>set.seed(1)
+<pre class="r"><code>map_df4 = df4 %&gt;% 
+  mutate(data = map(data, prior4))</code></pre>
+<pre class="r"><code>head(map_df4)</code></pre>
+<pre><code>## # A tibble: 6 x 2
+##   id    data                     
+##   &lt;chr&gt; &lt;list&gt;                   
+## 1 12,18 &lt;tibble [2,055,980 x 14]&gt;
+## 2 12,19 &lt;tibble [2,045,576 x 14]&gt;
+## 3 12,20 &lt;tibble [2,030,582 x 14]&gt;
+## 4 13,18 &lt;tibble [2,025,380 x 14]&gt;
+## 5 13,19 &lt;tibble [2,016,200 x 14]&gt;
+## 6 13,20 &lt;tibble [2,002,634 x 14]&gt;</code></pre>
+<pre class="r"><code>filterfun = function() {
+    group_by(x) %&gt;% 
+    mutate(nm = n())
+    ungroup() %&gt;%
+    filter(pE1&gt;pS,
+           pE2&gt;pS,
+           pE3&gt;pS,
+           pE4&gt;pS) %&gt;%
+    group_by(x, n2, n3) %&gt;%
+    summarize(n = n(),
+              alpha = 1 - n/nm) %&gt;%
+    filter(alpha &lt; 0.3) %&gt;%
+    distinct()
+  return(fin_df)
+}</code></pre>
+<pre class="r"><code>map_df4 = map_df4 %&gt;%
+  mutate(data = map(data, filterfun))</code></pre>
+<pre class="r"><code>head(map_df4) %&gt;% 
+  unnest()</code></pre>
+<pre><code>## # A tibble: 168 x 6
+##    id        x    n2    n3     n   alpha
+##    &lt;chr&gt; &lt;dbl&gt; &lt;int&gt; &lt;int&gt; &lt;int&gt;   &lt;dbl&gt;
+##  1 12,18 0.118    12    18 44174 0.269  
+##  2 12,18 0.121    12    18 45316 0.251  
+##  3 12,18 0.124    12    18 49973 0.174  
+##  4 12,18 0.127    12    18 50755 0.161  
+##  5 12,18 0.13     12    18 54593 0.0972 
+##  6 12,18 0.133    12    18 55289 0.0857 
+##  7 12,18 0.136    12    18 55765 0.0778 
+##  8 12,18 0.139    12    18 55824 0.0768 
+##  9 12,18 0.142    12    18 60173 0.00491
+## 10 12,18 0.145    12    18 60223 0.00408
+## # ... with 158 more rows</code></pre>
+<pre class="r"><code>set.seed(719)
 n_sim = 10e5
-sum(rbeta(n_sim, shape1 = 6.5, shape2 = 15.5) &gt; (rbeta(n_sim, shape1 = 25, shape2 = 75) + 0.109)) / n_sim</code></pre>
-<pre><code>## [1] 0.264725</code></pre>
-<pre class="r"><code>sum(rbeta(n_sim, shape1 = 12.5, shape2 = 29.5) &gt; (rbeta(n_sim, shape1 = 25, shape2 = 75) + 0.109)) / n_sim</code></pre>
-<pre><code>## [1] 0.224354</code></pre>
-<pre class="r"><code>sum(rbeta(n_sim, shape1 = 18.5, shape2 = 43.5) &gt; (rbeta(n_sim, shape1 = 25, shape2 = 75) + 0.109)) / n_sim</code></pre>
-<pre><code>## [1] 0.199</code></pre>
-<pre class="r"><code>sum(rbeta(n_sim, shape1 = 24.5, shape2 = 57.5) &gt; (rbeta(n_sim, shape1 = 25, shape2 = 75) + 0.109)) / n_sim</code></pre>
-<pre><code>## [1] 0.181939</code></pre>
+x = .124
+dat = tibble(sums = c(sum(rbeta(n_sim, shape1 = 6.5, shape2 = 15.5) &gt; (rbeta(n_sim, shape1 = 25, shape2 = 75) + x)) / n_sim,
+                      sum(rbeta(n_sim, shape1 = 5.5, shape2 = 16.5) &gt; (rbeta(n_sim, shape1 = 25, shape2 = 75) + x)) / n_sim,
+                      sum(rbeta(n_sim, shape1 = 13.5, shape2 = 28.5) &gt; (rbeta(n_sim, shape1 = 25, shape2 = 75) + x)) / n_sim,
+                      sum(rbeta(n_sim, shape1 = 12.5, shape2 = 29.5) &gt; (rbeta(n_sim, shape1 = 25, shape2 = 75) + x)) / n_sim,
+                      sum(rbeta(n_sim, shape1 = 20.5, shape2 = 41.5) &gt; (rbeta(n_sim, shape1 = 25, shape2 = 75) + x)) / n_sim,
+                      sum(rbeta(n_sim, shape1 = 19.5, shape2 = 42.5) &gt; (rbeta(n_sim, shape1 = 25, shape2 = 75) + x)) / n_sim,
+                      sum(rbeta(n_sim, shape1 = 24.5, shape2 = 48.5) &gt; (rbeta(n_sim, shape1 = 25, shape2 = 75) + x)) / n_sim,
+                      sum(rbeta(n_sim, shape1 = 23.5, shape2 = 49.5) &gt; (rbeta(n_sim, shape1 = 25, shape2 = 75) + x)) / n_sim))
+dat</code></pre>
+<pre><code>## # A tibble: 8 x 1
+##    sums
+##   &lt;dbl&gt;
+## 1 0.224
+## 2 0.113
+## 3 0.262
+## 4 0.176
+## 5 0.276
+## 6 0.205
+## 7 0.292
+## 8 0.225</code></pre>
+<pre class="r"><code>set.seed(1)
+n_sim = 10e4
+outputx = vector(mode = &quot;list&quot;, length = 20)
+for (i in 1:21) {
+  x = seq(0.1, 0.19, by = 0.01)
+  for (j in 1:10) {
+    outputx[[i]] = sum(rbeta(n_sim, shape1 = .5+i-1, shape2 =1.5+20-i-1) &gt; (rbeta(n_sim, shape1 = 25, shape2 = 75) + x[[j]])) / n_sim
+  }
+}
+  # outputx[[i]] = bind_cols(outputx)
+# }</code></pre>
 </div>
 
 
