@@ -508,3 +508,98 @@ prior = function(df = output, null = 0.25, stage1n = 20, stage2n = 71, n1 = 6, n
 }
 res = prior()
 ```
+
+
+
+```{r}
+delta_finder = function(df = map_df4, null = 0.25) {
+  df %>% 
+    mutate(pS = dbeta(null+x, 25, 75))
+}
+```
+
+```{r}
+map_df4 = delta_finder()
+```
+
+```{r}
+head(map_df4)
+
+head(map_df4) %>% 
+  unnest()
+```
+
+```{r}
+map_filt = function() {
+  unnest() %>% 
+    filter((n1_response + n2_response) > n2-1,
+         (n1_response + n2_response + n3_response) > n3-1)
+}
+```
+
+```{r}
+map_df4 = map_df4 %>% 
+  mutate(data = map(data, ~map_filt))
+```
+
+```{r ev8}
+map_df4 = map_df4 %>% 
+  unnest() %>%
+  filter((n1_response + n2_response) > n2-1,
+         (n1_response + n2_response + n3_response) > n3-1) %>% 
+  group_by(x) %>% 
+  mutate(nm = n()) %>% 
+  ungroup() %>%
+  filter(pE1>pS,
+         pE2>pS,
+         pE3>pS,
+         pE4>pS) %>% 
+  group_by(x) %>%
+  summarize(nm = nm,
+            n = n(),
+            alpha = 1 - n/nm) %>%
+  filter(alpha < 0.3) %>%
+  distinct()
+```
+
+```{r}
+map_df4
+
+map_df4 %>% 
+  unnest() %>% 
+  arrange(desc(alpha))
+```
+
+
+```{r, eval = FALSE}
+fill4 = function(df = map_df4) {
+  fin_df = df %>% 
+    unnest() %>% 
+    group_by(x) %>% 
+    mutate(nm = n()) %>% 
+    ungroup() %>%
+    filter(pE1>pS,
+           pE2>pS,
+           pE3>pS,
+           pE4>pS) %>% 
+    group_by(x) %>%
+    summarize(nm = nm,
+              n = n(),
+              alpha = 1 - n/nm) %>%
+    filter(alpha < 0.3) %>%
+    distinct()
+  return(fin_df)
+}
+```
+
+
+```{r, eval = FALSE}
+map_df4 = map_df4 %>%
+  mutate(data = map(data, fill4))
+```
+
+```{r, eval = FALSE}
+map_df4 %>% 
+  unnest() %>% 
+  arrange(alpha)
+```
