@@ -599,9 +599,12 @@ df4 = df4 %>%
   unnest(n3)
 ```
 
+```{r}
+df4
+```
 
 ```{r}
-prior4 = function(df = df5, null = 0.25, stage1n = 20, stage2n = 40, stage3n = 60, stage4n = 71) {
+prior4 = function(df = df4, null = 0.25, stage1n = 20, stage2n = 40, stage3n = 60, stage4n = 71) {
   # res = vector(mode = "list", length = 2)
   # for (i in 1:2) {
   res4 = df %>% 
@@ -618,28 +621,66 @@ prior4 = function(df = df5, null = 0.25, stage1n = 20, stage2n = 40, stage3n = 6
 }
 ```
 
-```{r ev7}
+```{r}
 map_df4 = df4 %>% 
   mutate(data = map(data, prior4))
 ```
 
 ```{r}
-map_df4 = map_df4 %>% 
+dist4 = map_df4 %>% 
   unnest() %>%
   mutate(pS = dbeta(.25+x, shape1 = 25/100, shape2 = 75/100)) %>% 
   filter((n1_response + n2_response) > n2-1,
          (n1_response + n2_response + n3_response) > n3-1) %>% 
   group_by(x, n2, n3) %>% 
-  nest()
+  summarize(n = n(),
+            alpha1 = 1 - sum(pE1 > pS)/n,
+            alpha2 = 1 - sum(pE2 > pS)/n,
+            alpha3 = 1 - sum(pE3 > pS)/n,
+            alpha4 = 1 - sum(pE4 > pS)/n)
+  # group_by(n2, n3) %>% 
+  # nest()
+```
+
+```{r}
+gg4 = dist4 %>% 
+#   group_by(x) %>% 
+# # filter(pE1>pS,
+# #        pE2>pS,
+# #        pE3>pS,
+# #        pE4>pS) %>%
+#   summarize(n = n(),
+#             alpha1 = 1 - sum(pE1 > pS)/n,
+#             alpha2 = 1 - sum(pE2 > pS)/n,
+#             alpha3 = 1 - sum(pE3 > pS)/n,
+#             alpha4 = 1 - sum(pE4 > pS)/n) %>%
+  # filter(alpha1 < 0.5,
+  #        alpha2 < 0.5,
+  #        alpha3 < 0.5,
+  #        alpha4 < 0.5) %>%
+  ggplot(aes(x = x)) +
+  geom_line(aes(y = alpha1), color = "red") + 
+  geom_line(aes(y = alpha2), color = "orange") +
+  geom_line(aes(y = alpha3), color = "yellow") +
+  geom_line(aes(y = alpha4), color = "green") +
+  facet_grid(n2~n3)
+```
+
+```{r}
+head(map_df4)
+
+gg4
 ```
 
 
-```{r}
+
+```{r, eval = FALSE, echo = FALSE}
 # # nmx = map_df4 %>%
 # #   group_by(x) %>%
 #   summarize(nm = n())
 dist4 = function(df = map_df4){
   gg = df %>% 
+    group_by(x) %>% 
   # filter(pE1>pS,
   #        pE2>pS,
   #        pE3>pS,
@@ -662,23 +703,28 @@ dist4 = function(df = map_df4){
 }
 ```
 
-```{r}
+```{r, echo = FALSE, eval = FALSE}
 distr = map_df4 %>% 
   mutate(data = map(data, dist4))
 ```
 
-```{r}
+```{r, echo = FALSE, eval = FALSE}
 head(distr)
 ```
 
 
-```{r, eval = FALSE}
-map_df4 %>% 
-  ggplot(aes(x = x, fill = n1)) +
-  geom_line(aes(y = pE1)) + 
-  geom_line(aes(y = pS))
+```{r}
+map_df4 %>%
+  unnest() %>% 
+  group_by(x, n2, n3) %>% 
+  ggplot(aes(x = x)) +
+  geom_line(aes(y = pE1))
+  # geom_line(aes(y = pS))
   # facet_grid(. ~ n1_response)
+```
 
+
+```{r, eval = FALSE}
 map_df4 %>% 
   ggplot(aes(x = x, fill = n2)) +
   geom_violin(aes(y = pE1, fill = n1_response, group = n2_response))
