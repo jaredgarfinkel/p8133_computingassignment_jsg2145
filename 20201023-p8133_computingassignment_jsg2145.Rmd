@@ -488,7 +488,7 @@ df4_maker = function(n1 = 7) {
       output4[[c(i, j)]] = bind_cols("n1_response" = i, "n2_response" = j)
       output4[[c(i, j)]]$k = list(seq(from = 1, to = 20))
       output4[[c(i, j)]]$l = list(seq(from = 1, to = 11))
-      output4[[c(i, j)]]$x = list(seq(from = .1, to = 0.4, by = 0.03))
+      output4[[c(i, j)]]$x = list(seq(from = .15, to = 0.35, by = 0.02))
       output4[[c(i, j)]]$n1 = n1
       # output4[[c(i, j)]]$n2 = list(seq(13, 14))
       # output4[[c(i, j)]]$n3 = list(seq(19, 21))
@@ -521,15 +521,16 @@ df5 = df5 %>%
 
 # df4
 ```
+
 ```{r}
-prior5 = function(df = df4, null = 0.25, stage1n = 20, stage2n = 40, stage3n = 60, stage4n = 71) {
+prior5 = function(df = df5, null = 0.25, stage1n = 20, stage2n = 40, stage3n = 60, stage4n = 71) {
   # res = vector(mode = "list", length = 2)
   # for (i in 1:2) {
   res5 = df %>% 
-    mutate(pE1 = dbeta(null, (0.5+n1_response)/stage1n, (1.5+stage1n-n1_response)/stage1n),
-           pE2 = dbeta(null, (0.5+n1_response+n2_response)/stage2n, (1.5+stage2n-n1_response-n2_response)/stage2n),
-           pE3 = dbeta(null, (0.5+n1_response + n2_response + n3_response)/stage3n, (1.5+stage3n-n1_response-n2_response-n3_response)/stage3n),
-           pE4 = dbeta(null, (0.5+n1_response + n2_response + n3_response + n4_response)/stage4n, (1.5+stage4n-n1_response-n2_response-n3_response-n4_response)/stage4n)) %>% 
+    mutate(pE1 = qbeta(null, (0.5+n1_response), (1.5+stage1n-n1_response)),
+           pE2 = qbeta(null, (0.5+n1_response+n2_response), (1.5+stage2n-n1_response-n2_response)),
+           pE3 = qbeta(null, (0.5+n1_response + n2_response + n3_response), (1.5+stage3n-n1_response-n2_response-n3_response)),
+           pE4 = qbeta(null, (0.5+n1_response + n2_response + n3_response + n4_response), (1.5+stage4n-n1_response-n2_response-n3_response-n4_response))) %>% 
            # pS = dbeta(null+pull(df, x), 25, 75))
     filter(n1_response > n1-1,
            # (n1_response + n2_response) > n2-1,
@@ -547,7 +548,7 @@ map_df5 = df5 %>%
 ```{r}
 map_df51 = map_df5 %>% 
   unnest() %>%
-  mutate(pS = dbeta(.25 + x, shape1 = 25/100, shape2 = 75/100)) %>% 
+  mutate(pS = qbeta(.25, shape1 = 25, shape2 = 75) + x) %>% 
   filter((n1_response + n2_response) > n2-1,
          (n1_response + n2_response + n3_response) > n3-1)
 
@@ -569,11 +570,12 @@ dist5 = map_df51 %>%
             alpha1 = 1 - sum(pE1 > pS)/n,
             alpha2 = 1 - sum(pE2 > pS)/n,
             alpha3 = 1 - sum(pE3 > pS)/n,
-            alpha4 = 1 - sum(pE4 > pS)/n) %>%
+            alpha4 = 1 - sum(pE4 > pS)/n)
   # filter(alpha1 < 0.5,
   #        alpha2 < 0.5,
   #        alpha3 < 0.5,
   #        alpha4 < 0.5) %>% 
+gg5 = dist5 %>% 
   ggplot(aes(x = x)) +
   geom_line(aes(y = alpha1), color = "red") + 
   geom_line(aes(y = alpha2), color = "orange") +
@@ -584,6 +586,8 @@ dist5 = map_df51 %>%
 
 ```{r}
 dist5
+
+gg5
   # arrange(desc(alpha1))
 ```
 
@@ -603,15 +607,16 @@ df4 = df4 %>%
 df4
 ```
 
-```{r}
-prior4 = function(df = df4, null = 0.25, stage1n = 20, stage2n = 40, stage3n = 60, stage4n = 71) {
+```{r ev10}
+prior4 = function(df= df4, null = 0.25, stage1n = 20, stage2n = 40, stage3n = 60, stage4n = 71) {
   # res = vector(mode = "list", length = 2)
   # for (i in 1:2) {
-  res4 = df %>% 
-    mutate(pE1 = dbeta(null, (0.5+n1_response)/stage1n, (1.5+stage1n-n1_response)/stage1n),
-           pE2 = dbeta(null, (0.5+n1_response+n2_response)/stage2n, (1.5+stage2n-n1_response-n2_response)/stage2n),
-           pE3 = dbeta(null, (0.5+n1_response + n2_response + n3_response)/stage3n, (1.5+stage3n-n1_response-n2_response-n3_response)/stage3n),
-           pE4 = dbeta(null, (0.5+n1_response + n2_response + n3_response + n4_response)/stage4n, (1.5+stage4n-n1_response-n2_response-n3_response-n4_response)/stage4n)) %>% 
+  res4 = df %>%
+    group_by(n1_response, n2_response, n3_response, n4_response) %>% 
+    mutate(pE1 = qbeta(null, (0.5+n1_response), (1.5+stage1n-n1_response)),
+           pE2 = qbeta(null, (0.5+n1_response+n2_response), (1.5+stage2n-n1_response-n2_response)),
+           pE3 = qbeta(null, (0.5+n1_response + n2_response + n3_response), (1.5+stage3n-n1_response-n2_response-n3_response)),
+           pE4 = qbeta(null, (0.5+n1_response + n2_response + n3_response + n4_response), (1.5+stage4n-n1_response-n2_response-n3_response-n4_response))) %>% 
            # pS = dbeta(null+pull(df, x), 25, 75))
     filter(n1_response > n1-1,
            # (n1_response + n2_response) > n2-1,
@@ -629,7 +634,7 @@ map_df4 = df4 %>%
 ```{r}
 dist4 = map_df4 %>% 
   unnest() %>%
-  mutate(pS = dbeta(.25+x, shape1 = 25/100, shape2 = 75/100)) %>% 
+  mutate(pS = qbeta(.25, shape1 = 25, shape2 = 75) + x) %>% 
   filter((n1_response + n2_response) > n2-1,
          (n1_response + n2_response + n3_response) > n3-1) %>% 
   group_by(x, n2, n3) %>% 
@@ -649,15 +654,15 @@ gg4 = dist4 %>%
 # #        pE2>pS,
 # #        pE3>pS,
 # #        pE4>pS) %>%
-#   summarize(n = n(),
-#             alpha1 = 1 - sum(pE1 > pS)/n,
-#             alpha2 = 1 - sum(pE2 > pS)/n,
-#             alpha3 = 1 - sum(pE3 > pS)/n,
-#             alpha4 = 1 - sum(pE4 > pS)/n) %>%
-  # filter(alpha1 < 0.5,
-  #        alpha2 < 0.5,
-  #        alpha3 < 0.5,
-  #        alpha4 < 0.5) %>%
+  # summarize(n = n(),
+  #           alpha1 = 1 - sum(pE1 > pS)/n,
+  #           alpha2 = 1 - sum(pE2 > pS)/n,
+  #           alpha3 = 1 - sum(pE3 > pS)/n,
+  #           alpha4 = 1 - sum(pE4 > pS)/n) %>%
+  # filter(alpha1 < 0.2,
+  #        alpha2 < 0.2,
+  #        alpha3 < 0.2,
+  #        alpha4 < 0.2) %>%
   ggplot(aes(x = x)) +
   geom_line(aes(y = alpha1), color = "red") + 
   geom_line(aes(y = alpha2), color = "orange") +
@@ -667,7 +672,12 @@ gg4 = dist4 %>%
 ```
 
 ```{r}
-head(map_df4)
+head(map_df4) %>% 
+  unnest()
+
+rbeta(10, 6.5, 14.5)
+qbeta(.25, 5.5, 14.5)
+qbeta(.25, 25, 75)
 
 gg4
 ```
@@ -713,12 +723,12 @@ head(distr)
 ```
 
 
-```{r}
+```{r, eval = FALSE}
 map_df4 %>%
   unnest() %>% 
   group_by(x, n2, n3) %>% 
   ggplot(aes(x = x)) +
-  geom_line(aes(y = pE1))
+  geom_point(aes(y = pE1))
   # geom_line(aes(y = pS))
   # facet_grid(. ~ n1_response)
 ```
@@ -740,17 +750,28 @@ attempt %>%
 ```{r, eval = FALSE}
 set.seed(719)
 n_sim = 10e5
-x = 0.231
+x = 0.24
 dat = tibble(means = c(sum(rbeta(n_sim, shape1 = 7.5, shape2 = 14.5) > (rbeta(n_sim, shape1 = 25, shape2 = 75) + x)) / n_sim,
                       sum(rbeta(n_sim, shape1 = 6.5, shape2 = 15.5) > (rbeta(n_sim, shape1 = 25, shape2 = 75) + x)) / n_sim,
-                      sum(rbeta(n_sim, shape1 = 14.5, shape2 = 27.5) > (rbeta(n_sim, shape1 = 25, shape2 = 75) + x)) / n_sim,
                       sum(rbeta(n_sim, shape1 = 13.5, shape2 = 28.5) > (rbeta(n_sim, shape1 = 25, shape2 = 75) + x)) / n_sim,
-                      sum(rbeta(n_sim, shape1 = 21.5, shape2 = 40.5) > (rbeta(n_sim, shape1 = 25, shape2 = 75) + x)) / n_sim,
-                      sum(rbeta(n_sim, shape1 = 20.5, shape2 = 41.5) > (rbeta(n_sim, shape1 = 25, shape2 = 75) + x)) / n_sim,
+                      sum(rbeta(n_sim, shape1 = 12.5, shape2 = 29.5) > (rbeta(n_sim, shape1 = 25, shape2 = 75) + x)) / n_sim,
+                      sum(rbeta(n_sim, shape1 = 19.5, shape2 = 42.5) > (rbeta(n_sim, shape1 = 25, shape2 = 75) + x)) / n_sim,
+                      sum(rbeta(n_sim, shape1 = 18.5, shape2 = 43.5) > (rbeta(n_sim, shape1 = 25, shape2 = 75) + x)) / n_sim,
                       sum(rbeta(n_sim, shape1 = 24.5, shape2 = 48.5) > (rbeta(n_sim, shape1 = 25, shape2 = 75) + x)) / n_sim,
                       sum(rbeta(n_sim, shape1 = 23.5, shape2 = 49.5) > (rbeta(n_sim, shape1 = 25, shape2 = 75) + x)) / n_sim))
 dat
 ```
+
+```{r}
+means = vector(mode = "list", length = 24)
+for (i in 1:24) {
+  for (j in 1:4) {
+    n = c(20, 40, 60, 71)
+    means[[c(i, j)]] = sum(rbeta(n_sim, shape1 = .5 + i, shape2 = 1.5 + n[[j]] - i))
+  }
+}
+```
+
 
 
 ```{r, eval = FALSE}
