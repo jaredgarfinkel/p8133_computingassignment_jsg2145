@@ -603,3 +603,529 @@ map_df4 %>%
   unnest() %>% 
   arrange(alpha)
 ```
+
+
+
+```{r, echo = FALSE}
+output2 = vector(mode = "list", length = 400)
+for (i in 1:20) {
+  for (j in 1:20) {
+    output2[[c(i, j)]] = bind_cols("n1_response" = i, "n2_response" = j)
+    output2[[c(i, j)]]$x = list(seq(from = 0.01, to = 0.4, by = 0.003))
+  }
+  output2[[i]] = map(output2[[i]], ~bind_rows(.))
+}
+
+
+df2 = bind_rows(output2) %>% 
+  unnest(x) %>% 
+  mutate(id = row_number()) %>% 
+  nest(c(n1_response:x))
+df2
+```
+
+```{r, echo = FALSE}
+prior2 = function(df, null = 0.25, stage1n = 20, stage2n = 40, n1 = 6, n2 = 12) {
+  res = df %>% 
+    # unnest(data) %>% 
+    mutate(pE1 = dbeta(null, (0.5+n1_response/stage1n), (1.5+stage1n-n1_response)/stage1n),
+           pE2 = dbeta(null, (0.5+n1_response+n2_response)/stage2n, (1.5+stage2n-n1_response-n2_response)/stage2n),
+           pS = dbeta(null+x, 25, 75)) %>% 
+    filter(n1_response > n1-1,
+           (n1_response + n2_response) > n2-1)
+  # res = bind_rows(res) %>%
+  #   filter(pE1 > pS,
+  #          pE2 > pS) %>%
+  #   group_by(x) %>%
+  #   summarize(x = x,
+  #             alpha = length(x)/n())
+  #   filter(alpha < .2)
+  return(res)
+}
+```
+
+```{r}
+# prior2(df2$data[[1021]])
+
+```
+
+
+
+```{r mapdf2, echo = FALSE, eval = FALSE, cache = TRUE}
+map_df2 = df2 %>% 
+  mutate(data2 = map(data, prior2))
+```
+
+
+```{r, eval = FALSE,cache = TRUE}
+map_df2 %>% 
+  unnest(data2) %>%
+  # group_by(x) %>%
+  # summarize(n = n(),
+  #           alpha = sum(pE1 > pS & pE2 > pS & n1_response > 5 & (n1_response + n2_response) > 11)) %>% 
+  # group_by(x) %>% 
+  # summarize(alpha = 1-alpha/n)
+  filter(n1_response > 5,
+         (n1_response + n2_response) > 11,
+         pE1 > pS,
+         pE2 > pS) %>%
+  group_by(x) %>%
+  summarize(n = n(),
+            alpha = 1 - n/285) %>%
+            # alpha = 1 - n/nrow(df2)) %>%
+  filter(alpha < 0.21) %>%
+  distinct()
+```
+
+```{r, echo = FALSE}
+output3 = vector(mode = "list", length = 8000)
+for (i in 1:20) {
+  for (j in 1:20) {
+    output3[[c(i, j)]] = bind_cols("n1_response" = i, "n2_response" = j)
+    output3[[c(i, j)]]$k = list(seq(from = 1, to = 20))
+    output3[[c(i, j)]]$x = list(seq(from = .1, to = 0.199, by = 0.003))
+  }
+  output3[[i]] = map(output3[[i]], ~bind_rows(.))
+}
+
+df3 = bind_rows(output3) %>% 
+  rename("n3_response" = k) %>% 
+  unnest(n3_response) %>% 
+  unnest(x) %>% 
+  mutate(id = row_number()) %>% 
+  nest(n1_response:x)
+```
+
+
+```{r, echo = FALSE}
+prior3 = function(df = df3, null = 0.25, stage1n = 20, stage2n = 40, stage3n = 60, n1 = 6, n2 = 12, n3 = 18) {
+  res2 = df %>% 
+    # unnest(data) %>% 
+    mutate(pE1 = dbeta(null, (0.5+n1_response)/stage1n, (1.5+stage1n-n1_response)/stage1n),
+           pE2 = dbeta(null, (0.5+n1_response+n2_response)/stage2n, (1.5+stage2n-n1_response-n2_response)/stage2n),
+           pE3 = dbeta(null, (0.5+n1_response + n2_response + n3_response)/stage3n, (1.5+stage3n-n1_response-n2_response-n3_response)/stage3n),
+           pS = dbeta(null+x, 25, 75))
+    # filter(n1_response > n1-1,
+    #        (n1_response + n2_response) > n2-1,
+    #        (n1_response + n2_response + n3_response) > n3-1)
+  # res = res %>%
+  #   filter(pE3 > pS) %>%
+  #   group_by(x) %>%
+  #   mutate(alpha = 1 - length(x)/nrow(goutput3)) %>%
+  #   select(x, alpha) %>%
+  #   distinct() %>%
+  #   filter(alpha < .2)
+  return(res2)
+}
+```
+
+```{r mapdf3, echo = FALSE, eval = FALSE, cache = TRUE}
+map_df3 = df3 %>% 
+  mutate(data3 = map(data, prior3))
+```
+
+```{r, eval = FALSE, echo = FALSE}
+map_df3 %>% 
+  unnest(data3) %>%
+  # group_by(x) %>% 
+  # summarize(n = n())
+  filter(pE1 > pS,
+         pE2 > pS,
+         pE3 > pS) %>%
+  group_by(x) %>%
+  summarize(n = n(),
+            alpha = 1 - n/5590) %>%
+            # alpha = 1 - n/nrow(df2)) %>%
+  filter(alpha < 0.21) %>%
+  distinct()
+```
+
+```{r ev2, eval = FALSE}
+output4 = vector(mode = "list", length = 20)
+for (i in 1:20) {
+  for(j in 1:20) {
+    output4[[c(i, j)]] = bind_cols("n1_response" = i, "n2_response" = j)
+    output4[[c(i, j)]]$k = list(seq(from = 1, to = 20))
+    output4[[c(i, j)]]$l = list(seq(from = 1, to = 11))
+    output4[[c(i, j)]]$x = list(seq(from = .15, to = 0.3, by = 0.003))
+    output4[[c(i, j)]]$n1 = 7
+    output4[[c(i, j)]]$n2 = list(seq(13, 14))
+    output4[[c(i, j)]]$n3 = list(seq(19, 21))
+    output4[[c(i, j)]]$n4 = 24
+  }
+  output4[[i]] = map(output4[[i]], ~bind_rows(.))
+}
+```
+
+
+```{r ev1, eval = FALSE}
+df4 = bind_rows(output4) %>% 
+  rename("n3_response" = k,
+         "n4_response" = l) %>%
+  unnest(n2) %>%
+  unnest(n3) %>%
+  mutate(id = paste0(n2, ",", n3)) %>%
+  unnest(x) %>% 
+  unnest(n3_response) %>% 
+  unnest(n4_response) %>% 
+  nest(-id)
+```
+
+```{r}
+df4_maker = function(n1 = 7) {
+  output4 = vector(mode = "list", length = 20)
+  for (i in 1:20) {
+    for(j in 1:20) {
+      output4[[c(i, j)]] = bind_cols("n1_response" = i, "n2_response" = j)
+      output4[[c(i, j)]]$k = list(seq(from = 1, to = 20))
+      output4[[c(i, j)]]$l = list(seq(from = 1, to = 11))
+      output4[[c(i, j)]]$x = list(seq(from = .15, to = 0.35, by = 0.02))
+      output4[[c(i, j)]]$n1 = n1
+      # output4[[c(i, j)]]$n2 = list(seq(13, 14))
+      # output4[[c(i, j)]]$n3 = list(seq(19, 21))
+      output4[[c(i, j)]]$n4 = 24
+    }
+    output4[[i]] = map(output4[[i]], ~bind_rows(.))
+  }
+  df4 = bind_rows(output4) %>% 
+    rename("n3_response" = k,
+           "n4_response" = l) %>%
+    unnest(x) %>% 
+    unnest(n3_response) %>% 
+    unnest(n4_response) %>% 
+    nest(-x)
+  return(df4)
+}
+```
+
+By creating a dataframe of all possible outcomes it is possible to calculate the probability of each response rate for each interim analysis. This function creates the responses, there are 20 possible response rates in the first trial, 20 potential response rates in the 2nd trial, 20 potential response rates in the 3rd trial and 11 in the 4th and final trial. This means there are 20x20x20x11 potential outcomes, or 88,000.
+
+```{r}
+df5 = df4_maker()
+```
+
+```{r}
+df5 = df5 %>% 
+  mutate(n3 = list(19:21),
+         n2 = list(13:14)) %>% 
+  unnest(n2) %>% 
+  unnest(n3)
+
+# df4
+```
+
+I hypothesized that the cutoff rates for futility could be 6 or 7 in each interim analysis to reduce the number of potential futility response rates. With a futility response of 7 in the first trial, there can be a cutoff of 13 (7 + 6) or 14 (7 + 7) in the 2nd round. In the 3rd round there should be between 19 (7 + 6 + 6) and 21 ( 7 + 7 + 7) responses to avoid futility. There must be 24 responses ($S_{71} = 24$) to avoid futility in the final check.
+
+```{r}
+prior5 = function(df = df5, null = 0.25, stage1n = 20, stage2n = 40, stage3n = 60, stage4n = 71) {
+  # res = vector(mode = "list", length = 2)
+  # for (i in 1:2) {
+  res5 = df %>% 
+    mutate(pE1 = pbeta(null, (0.5+n1_response), (1.5+stage1n-n1_response)),
+           pE2 = pbeta(null, (0.5+n1_response+n2_response), (1.5+stage2n-n1_response-n2_response)),
+           pE3 = pbeta(null, (0.5+n1_response + n2_response + n3_response), (1.5+stage3n-n1_response-n2_response-n3_response)),
+           pE4 = pbeta(null, (0.5+n1_response + n2_response + n3_response + n4_response), (1.5+stage4n-n1_response-n2_response-n3_response-n4_response))) %>% 
+           # pS = dbeta(null+pull(df, x), 25, 75))
+    filter(n1_response > n1-1,
+           # (n1_response + n2_response) > n2-1,
+           # (n1_response + n2_response + n3_response) > n3-1,
+           (n1_response + n2_response + n3_response + n4_response) > n4-1)
+  return(res5)
+}
+```
+
+I calculated the probability distribution of each response using an updated beta distribution for that number of responses in each trial. Then, I filtered on only the response rates that would pass the futility interim analysis.
+
+```{r}
+map_df5 = df5 %>% 
+  mutate(data = map(data, prior5))
+```
+
+```{r}
+map_df51 = map_df5 %>% 
+  unnest() %>%
+  mutate(pS = qbeta(.25, shape1 = 25, shape2 = 75) + x) %>% 
+  filter((n1_response + n2_response) > n2-1,
+         (n1_response + n2_response + n3_response) > n3-1)
+
+tail(map_df51, n = 1000L)
+```
+
+Then I added the posterior distribution, pS (given), to the dataframe and included the different possible cutoff values of n2 and n3. So, if the probability of choosing the value in the prior based on the updated prior distribution (pE) is greater than the probability of choosing the same value under the posterior (pS) with a buffer of $\delta$ in less than $\alpha$ proportion of cases then the conditions are satisfied.
+
+```{r}
+# nmx1 = map_df51 %>% 
+#   group_by(x, n2, n3) %>%
+#   summarize(nm = n()) 
+dist5 = map_df51 %>% 
+  # left_join(nmx1, by = c("x", "n2", "n3"), copy = TRUE) %>% 
+  # filter(pE1>pS,
+  #        pE2>pS,
+  #        pE3>pS,
+  #        pE4>pS) %>%
+  group_by(x, n1_response, n2_response, n3_response, n4_response) %>%
+  summarize(n = n(),
+            alpha1 = sum(pE1 > pS)/n,
+            alpha2 = sum(pE2 > pS)/n,
+            alpha3 = sum(pE3 > pS)/n,
+            alpha4 = sum(pE4 > pS)/n)
+  # filter(alpha1 < 0.5,
+  #        alpha2 < 0.5,
+  #        alpha3 < 0.5,
+  #        alpha4 < 0.5) %>% 
+gg5 = dist5 %>% 
+  ggplot(aes(x = x)) +
+  geom_line(aes(y = alpha1), color = "red") + 
+  geom_line(aes(y = alpha2), color = "orange") +
+  geom_line(aes(y = alpha3), color = "yellow") +
+  geom_line(aes(y = alpha4), color = "green") +
+  facet_grid(n2~n3)
+```
+
+```{r}
+map_df51 %>% 
+  filter(abs(pE1 - pE4) < 10e-4,
+         abs(pE1 - pE2) < 10e-3,
+         abs(pE1 - pE3) < 10e-3)
+
+```
+
+
+```{r, eval = FALSE}
+dist5
+
+gg5
+  # arrange(desc(alpha1))
+```
+
+# n1 = 6
+
+```{r}
+df4 = df4_maker(n1 = 6)
+
+df4 = df4 %>% 
+  mutate(n2 = list(12:13),
+         n3 = list(18:20)) %>% 
+  unnest(n2) %>% 
+  unnest(n3)
+```
+
+```{r}
+df4
+```
+
+```{r ev10}
+prior4 = function(df= df4, null = 0.25, stage1n = 20, stage2n = 40, stage3n = 60, stage4n = 71) {
+  # res = vector(mode = "list", length = 2)
+  # for (i in 1:2) {
+  res4 = df %>%
+    group_by(n1_response, n2_response, n3_response, n4_response) %>% 
+    mutate(pE1 = qbeta(null, (0.5+n1_response), (1.5+stage1n-n1_response)),
+           pE2 = qbeta(null, (0.5+n1_response+n2_response), (1.5+stage2n-n1_response-n2_response)),
+           pE3 = qbeta(null, (0.5+n1_response + n2_response + n3_response), (1.5+stage3n-n1_response-n2_response-n3_response)),
+           pE4 = qbeta(null, (0.5+n1_response + n2_response + n3_response + n4_response), (1.5+stage4n-n1_response-n2_response-n3_response-n4_response))) %>% 
+           # pS = dbeta(null+pull(df, x), 25, 75))
+    filter(n1_response > n1-1,
+           # (n1_response + n2_response) > n2-1,
+           # (n1_response + n2_response + n3_response) > n3-1,
+           (n1_response + n2_response + n3_response + n4_response) > n4-1)
+  return(res4)
+}
+```
+
+```{r}
+map_df4 = df4 %>% 
+  mutate(data = map(data, prior4))
+```
+
+```{r}
+dist4 = map_df4 %>% 
+  unnest() %>%
+  mutate(pS = qbeta(.25, shape1 = 25, shape2 = 75) + x) %>% 
+  filter((n1_response + n2_response) > n2-1,
+         (n1_response + n2_response + n3_response) > n3-1) %>% 
+  group_by(x, n2, n3) %>% 
+  summarize(n = n(),
+            alpha1 = sum(pE1 > pS)/n,
+            alpha2 = sum(pE2 > pS)/n,
+            alpha3 = sum(pE3 > pS)/n,
+            alpha4 = sum(pE4 > pS)/n)
+  # group_by(n2, n3) %>% 
+  # nest()
+```
+
+```{r}
+gg4 = dist4 %>% 
+#   group_by(x) %>% 
+# # filter(pE1>pS,
+# #        pE2>pS,
+# #        pE3>pS,
+# #        pE4>pS) %>%
+  # summarize(n = n(),
+  #           alpha1 = 1 - sum(pE1 > pS)/n,
+  #           alpha2 = 1 - sum(pE2 > pS)/n,
+  #           alpha3 = 1 - sum(pE3 > pS)/n,
+  #           alpha4 = 1 - sum(pE4 > pS)/n) %>%
+  # filter(alpha1 < 0.2,
+  #        alpha2 < 0.2,
+  #        alpha3 < 0.2,
+  #        alpha4 < 0.2) %>%
+  ggplot(aes(x = x)) +
+  geom_line(aes(y = alpha1), color = "red") + 
+  geom_line(aes(y = alpha2), color = "orange") +
+  geom_line(aes(y = alpha3), color = "yellow") +
+  geom_line(aes(y = alpha4), color = "green") +
+  facet_grid(n2~n3)
+```
+
+```{r}
+head(map_df4) %>% 
+  unnest()
+
+dist4 %>% 
+  filter(alpha4 > alpha1)
+
+rbeta(10, 6.5, 14.5)
+qbeta(.25, 5.5, 14.5)
+qbeta(.25, 25, 75)
+
+gg4
+```
+
+
+
+```{r, eval = FALSE, echo = FALSE}
+# # nmx = map_df4 %>%
+# #   group_by(x) %>%
+#   summarize(nm = n())
+dist4 = function(df = map_df4){
+  gg = df %>% 
+    group_by(x) %>% 
+  # filter(pE1>pS,
+  #        pE2>pS,
+  #        pE3>pS,
+  #        pE4>pS) %>%
+    summarize(n = n(),
+              alpha1 = 1 - sum(pE1 > pS)/n,
+              alpha2 = 1 - sum(pE2 > pS)/n,
+              alpha3 = 1 - sum(pE3 > pS)/n,
+              alpha4 = 1 - sum(pE4 > pS)/n) %>%
+    # filter(alpha1 < 0.5,
+    #        alpha2 < 0.5,
+    #        alpha3 < 0.5,
+    #        alpha4 < 0.5) %>%
+    ggplot(aes(x = x)) +
+    geom_line(aes(y = alpha1), color = "red") + 
+    geom_line(aes(y = alpha2), color = "orange") +
+    geom_line(aes(y = alpha3), color = "yellow") +
+    geom_line(aes(y = alpha4), color = "green")
+  return(gg)
+}
+```
+
+```{r, echo = FALSE, eval = FALSE}
+distr = map_df4 %>% 
+  mutate(data = map(data, dist4))
+```
+
+```{r, echo = FALSE, eval = FALSE}
+head(distr)
+```
+
+
+```{r, eval = FALSE}
+map_df4 %>%
+  unnest() %>% 
+  group_by(x, n2, n3) %>% 
+  ggplot(aes(x = x)) +
+  geom_point(aes(y = pE1))
+  # geom_line(aes(y = pS))
+  # facet_grid(. ~ n1_response)
+```
+
+
+```{r, eval = FALSE}
+map_df4 %>% 
+  ggplot(aes(x = x, fill = n2)) +
+  geom_violin(aes(y = pE1, fill = n1_response, group = n2_response))
+  # facet_grid(n2_response ~ n1_response)
+```
+
+
+```{r, eval = FALSE}
+attempt %>% 
+  arrange(desc(alpha))
+```
+
+```{r, eval = FALSE}
+set.seed(719)
+n_sim = 10e5
+x = 0.27
+dat = tibble(means = c(sum(rbeta(n_sim, shape1 = 7.5, shape2 = 14.5) > (rbeta(n_sim, shape1 = 25, shape2 = 75) + x)) / n_sim,
+                      sum(rbeta(n_sim, shape1 = 6.5, shape2 = 15.5) > (rbeta(n_sim, shape1 = 25, shape2 = 75) + x)) / n_sim,
+                      sum(rbeta(n_sim, shape1 = 13.5, shape2 = 28.5) > (rbeta(n_sim, shape1 = 25, shape2 = 75) + x)) / n_sim,
+                      sum(rbeta(n_sim, shape1 = 12.5, shape2 = 29.5) > (rbeta(n_sim, shape1 = 25, shape2 = 75) + x)) / n_sim,
+                      sum(rbeta(n_sim, shape1 = 19.5, shape2 = 42.5) > (rbeta(n_sim, shape1 = 25, shape2 = 75) + x)) / n_sim,
+                      sum(rbeta(n_sim, shape1 = 18.5, shape2 = 43.5) > (rbeta(n_sim, shape1 = 25, shape2 = 75) + x)) / n_sim,
+                      sum(rbeta(n_sim, shape1 = 24.5, shape2 = 48.5) > (rbeta(n_sim, shape1 = 25, shape2 = 75) + x)) / n_sim,
+                      sum(rbeta(n_sim, shape1 = 23.5, shape2 = 49.5) > (rbeta(n_sim, shape1 = 25, shape2 = 75) + x)) / n_sim))
+dat
+```
+
+```{r}
+means = vector(mode = "list", length = 24)
+for (i in 1:24) {
+  for (j in 1:4) {
+    n = c(20, 40, 60, 71)
+    means[[c(i, j)]] = sum(rbeta(n_sim, shape1 = .5 + i, shape2 = 1.5 + n[[j]] - i))
+  }
+}
+```
+
+
+
+```{r, eval = FALSE}
+set.seed(1)
+n_sim = 10e4
+x = seq(0.1, 0.19, by = 0.01)
+outputx = vector(mode = "list", length = 20)
+res = vector(mode = "list", length = 20)
+for (i in 1:20) {
+  for (j in 1:10) {
+    outputx[[c(i, j)]] = sum(rbeta(n_sim, shape1 = .5+i, shape2 =1.5+20-i) > (rbeta(n_sim, shape1 = 25, shape2 = 75) + x[[j]])) / n_sim
+    res[[c(i, j)]] = bind_cols("alpha" = outputx[[c(i, j)]], "i" = i, "j" = j)
+  }
+  res[[i]] = map(res[[i]], ~bind_rows(.))
+}
+# outputx = bind_rows(outputx)
+# outputx
+res = bind_rows(res)
+res
+```
+
+```{r}
+prior = function(df = output, null = 0.25, stage1n = 20, stage2n = 71, n1 = 6, n2 = 24) {
+  res = df %>% 
+    unnest(data) %>% 
+    mutate(pE1 = dbeta(null, n1_response/stage1n, (stage1n-n1_response)/stage1n),
+           pE2 = dbeta(null, (n1_response+n2_response)/stage2n, (stage2n-n1_response-n2_response)/stage2n),
+           pS = dbeta(null+x, 25, 75)) %>% 
+    filter(n1_response > n1-1,
+           n1_response + n2_response > n2-1)
+  
+  res  = res %>% 
+    filter(pE1>pS,
+           pE2>pS) %>% 
+    group_by(x) %>% 
+    mutate(alpha = 1 - length(x)/nrow(goutput)) %>% 
+    select(x, alpha) %>% 
+    distinct() %>% 
+    filter(alpha < .2)
+  return(res)
+}
+res = prior()
+```
+
+```{r}
+res
+```
