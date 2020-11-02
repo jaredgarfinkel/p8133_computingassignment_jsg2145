@@ -367,8 +367,6 @@ I hypothesized that the cutoff rates for futility could be 6 or 7 in each interi
 
 ```{r}
 prior5 = function(df = df5, null = 0.25, stage1n = 20, stage2n = 40, stage3n = 60, stage4n = 71) {
-  # res = vector(mode = "list", length = 2)
-  # for (i in 1:2) {
   res5 = df %>% 
     mutate(pE1 = qbeta(null, (0.5+n1_response), (1.5+stage1n-n1_response)),
            pE2 = qbeta(null, (0.5+n1_response+n2_response), (1.5+stage2n-n1_response-n2_response)),
@@ -383,7 +381,61 @@ prior5 = function(df = df5, null = 0.25, stage1n = 20, stage2n = 40, stage3n = 6
 }
 ```
 
-I calculated the probability distribution of each response using an updated beta distribution for that number of responses in each trial. Then, I filtered on only the response rates that would pass the futility interim analysis.
+```{r}
+prior6 = function(df = df5, null = 0.25, stage1n = 20, stage2n = 20, stage3n = 20, stage4n = 11) {
+  res6 = df %>% 
+    mutate(pE1 = qbeta(null, (0.5+n1_response), (1.5+stage1n-n1_response)),
+           pE2 = qbeta(null, (0.5+n2_response), (1.5+stage2n-n2_response)),
+           pE3 = qbeta(null, (0.5+n3_response), (1.5+stage3n-n3_response)),
+           pE4 = qbeta(null, (0.5+n4_response), (1.5+stage4n-n4_response)))
+           # pS = dbeta(null+pull(df, x), 25, 75))
+    # filter(n1_response > n1-1,
+    #        (n1_response + n2_response) > n2-1,
+    #        (n1_response + n2_response + n3_response) > n3-1,
+    #        (n1_response + n2_response + n3_response + n4_response) > n4-1)
+  return(res6)
+}
+```
+
+
+```{r}
+map_df6 = df5 %>% 
+  mutate(data = map(data, prior6))
+```
+
+
+```{r}
+map_df6_nested = map_df6 %>% 
+  unnest() %>%
+  mutate(pS = qbeta(.25, shape1 = 25, shape2 = 75)) %>% 
+  group_by(x, n1_response, n2_response, n3_response, n4_response) %>% 
+  mutate(alpha1 = mean(pE1 > pS + x),
+         alpha2 = mean(pE2 > pS + x),
+         alpha3 = mean(pE3 > pS + x),
+         alpha4 = mean(pE4 > pS + x)) %>% 
+  ungroup() %>% 
+  group_by(n1_response, n2_response, n3_response, n4_response) %>% 
+  nest()
+```
+
+```{r}
+map_df61_nested = map_df6_nested %>% 
+  mutate(data = map(data, ~filter(., alpha1 > 0.2,
+                                  alpha2 > 0.2,
+                                  alpha3 > 0.2,
+                                  alpha4 > 0.2)))
+```
+
+```{r}
+map_df61_nested %>% 
+  unnest() %>% 
+  select(x, alpha1, alpha2, alpha3, alpha4, pE1, pE2, pE3, pE4, pS, n1_response, n2_response, n3_response, n4_response) %>% 
+  distinct() %>% 
+  filter(x == 0.15) %>% 
+  head()
+```
+
+I calculated the quantile of each response using an updated beta distribution for that number of responses in each trial. Then, I filtered on only the response rates that would pass the futility interim analysis.
 
 ```{r}
 map_df5 = df5 %>% 
@@ -405,6 +457,8 @@ map_df5_nested = map_df5 %>%
          alpha2 = mean(pE2 > pS + x),
          alpha3 = mean(pE3 > pS + x),
          alpha4 = mean(pE4 > pS + x)) %>% 
+  # ungroup() %>%
+  # group_by(n1_response, n2_response, n3_response, n4_response) %>%
   # filter(n1_response > n1-1,
   #        (n1_response + n2_response) > n2-1,
   #        (n1_response + n2_response + n3_response) > n3-1,
@@ -413,16 +467,29 @@ map_df5_nested = map_df5 %>%
 ```
 
 ```{r}
-map_df5_nested %>% 
-  head() %>% 
-  unnest()
+map_df51_nested = map_df5_nested %>% 
+  mutate(data = map(data, ~filter(., alpha1 > 0.2,
+                                  alpha2 > 0.2,
+                                  alpha3 > 0.2,
+                                  alpha4 > 0.2)))
 ```
 
-Then I added the posterior distribution, pS (given), to the dataframe and included the different possible cutoff values of n2 and n3. 
+```{r}
+map_df51_nested %>% 
+  unnest() %>% 
+  select(x, alpha1, alpha2, alpha3, alpha4, pE1, pE2, pE3, pE4, pS, n1_response, n2_response, n3_response, n4_response) %>% 
+  distinct() %>% 
+  filter(x == 0.15) %>% 
+  head()
+```
+
+Then I added the posterior distribution, pS (given), to the dataframe.
 
 The alpha values can be calculated to be the average of the values of pE that are greater than $p_S + \delta$ for all values of potential responses. For instance, if the response in the first trial is below the futility decision no more participants are recruited. Further, if the futility decision is reached in an earlier trial, then the stopping time is recorded at the end of that trial (n = 20, 40, 60 or 71).
 
 So, only if the probability of observing a response rate for the prior based on the updated prior distribution (pE) is greater than the probability of choosing the same value under the posterior (pS) with a buffer of $\delta$ in less than $\alpha$ proportion of cases then the conditions are satisfied.
+
+Using the direct calculation method, it is possible to determine that response rates in each of the 4 interim analyses of 10, 8, 8, and 4 will satisfy the conditions. So, we can use these as the futility cutoffs.
 
 ```{r, eval = FALSE}
 # nmx1 = map_df51 %>% 
@@ -509,62 +576,62 @@ prior4 = function(df= df4, null = 0.25, stage1n = 20, stage2n = 40, stage3n = 60
 ```
 
 ```{r}
-map_df4 = df4 %>% 
-  mutate(data = map(data, prior4))
+# map_df4 = df4 %>% 
+#   mutate(data = map(data, prior4))
 ```
 
 ```{r}
-dist4 = map_df4 %>% 
-  unnest() %>%
-  mutate(pS = qbeta(.25, shape1 = 25, shape2 = 75) + x) %>% 
-  filter((n1_response + n2_response) > n2-1,
-         (n1_response + n2_response + n3_response) > n3-1) %>% 
-  group_by(x, n2, n3) %>% 
-  summarize(n = n(),
-            alpha1 = sum(pE1 > pS)/n,
-            alpha2 = sum(pE2 > pS)/n,
-            alpha3 = sum(pE3 > pS)/n,
-            alpha4 = sum(pE4 > pS)/n)
+# dist4 = map_df4 %>% 
+#   unnest() %>%
+#   mutate(pS = qbeta(.25, shape1 = 25, shape2 = 75) + x) %>% 
+#   filter((n1_response + n2_response) > n2-1,
+#          (n1_response + n2_response + n3_response) > n3-1) %>% 
+#   group_by(x, n2, n3) %>% 
+#   summarize(n = n(),
+#             alpha1 = sum(pE1 > pS)/n,
+#             alpha2 = sum(pE2 > pS)/n,
+#             alpha3 = sum(pE3 > pS)/n,
+#             alpha4 = sum(pE4 > pS)/n)
   # group_by(n2, n3) %>% 
   # nest()
 ```
 
 ```{r}
-gg4 = dist4 %>% 
-#   group_by(x) %>% 
-# # filter(pE1>pS,
-# #        pE2>pS,
-# #        pE3>pS,
-# #        pE4>pS) %>%
-  # summarize(n = n(),
-  #           alpha1 = 1 - sum(pE1 > pS)/n,
-  #           alpha2 = 1 - sum(pE2 > pS)/n,
-  #           alpha3 = 1 - sum(pE3 > pS)/n,
-  #           alpha4 = 1 - sum(pE4 > pS)/n) %>%
-  # filter(alpha1 < 0.2,
-  #        alpha2 < 0.2,
-  #        alpha3 < 0.2,
-  #        alpha4 < 0.2) %>%
-  ggplot(aes(x = x)) +
-  geom_line(aes(y = alpha1), color = "red") + 
-  geom_line(aes(y = alpha2), color = "orange") +
-  geom_line(aes(y = alpha3), color = "yellow") +
-  geom_line(aes(y = alpha4), color = "green") +
-  facet_grid(n2~n3)
+# gg4 = dist4 %>% 
+# #   group_by(x) %>% 
+# # # filter(pE1>pS,
+# # #        pE2>pS,
+# # #        pE3>pS,
+# # #        pE4>pS) %>%
+#   # summarize(n = n(),
+#   #           alpha1 = 1 - sum(pE1 > pS)/n,
+#   #           alpha2 = 1 - sum(pE2 > pS)/n,
+#   #           alpha3 = 1 - sum(pE3 > pS)/n,
+#   #           alpha4 = 1 - sum(pE4 > pS)/n) %>%
+#   # filter(alpha1 < 0.2,
+#   #        alpha2 < 0.2,
+#   #        alpha3 < 0.2,
+#   #        alpha4 < 0.2) %>%
+#   ggplot(aes(x = x)) +
+#   geom_line(aes(y = alpha1), color = "red") + 
+#   geom_line(aes(y = alpha2), color = "orange") +
+#   geom_line(aes(y = alpha3), color = "yellow") +
+#   geom_line(aes(y = alpha4), color = "green") +
+#   facet_grid(n2~n3)
 ```
 
 ```{r}
-head(map_df4) %>% 
-  unnest()
-
-dist4 %>% 
-  filter(alpha4 > alpha1)
-
-rbeta(10, 6.5, 14.5)
-qbeta(.25, 5.5, 14.5)
-qbeta(.25, 25, 75)
-
-gg4
+# head(map_df4) %>% 
+#   unnest()
+# 
+# dist4 %>% 
+#   filter(alpha4 > alpha1)
+# 
+# rbeta(10, 6.5, 14.5)
+# qbeta(.25, 5.5, 14.5)
+# qbeta(.25, 25, 75)
+# 
+# gg4
 ```
 
 
@@ -616,17 +683,17 @@ attempt %>%
 ```{r, eval = FALSE}
 set.seed(719)
 n_sim = 10e5
-x = 0.27
-dat = tibble(means = c(sum(rbeta(n_sim, shape1 = 7.5, shape2 = 14.5) > (rbeta(n_sim, shape1 = 25, shape2 = 75) + x)) / n_sim,
-                      sum(rbeta(n_sim, shape1 = 6.5, shape2 = 15.5) > (rbeta(n_sim, shape1 = 25, shape2 = 75) + x)) / n_sim,
-                      sum(rbeta(n_sim, shape1 = 13.5, shape2 = 28.5) > (rbeta(n_sim, shape1 = 25, shape2 = 75) + x)) / n_sim,
-                      sum(rbeta(n_sim, shape1 = 12.5, shape2 = 29.5) > (rbeta(n_sim, shape1 = 25, shape2 = 75) + x)) / n_sim,
-                      sum(rbeta(n_sim, shape1 = 19.5, shape2 = 42.5) > (rbeta(n_sim, shape1 = 25, shape2 = 75) + x)) / n_sim,
-                      sum(rbeta(n_sim, shape1 = 18.5, shape2 = 43.5) > (rbeta(n_sim, shape1 = 25, shape2 = 75) + x)) / n_sim,
-                      sum(rbeta(n_sim, shape1 = 24.5, shape2 = 48.5) > (rbeta(n_sim, shape1 = 25, shape2 = 75) + x)) / n_sim,
-                      sum(rbeta(n_sim, shape1 = 23.5, shape2 = 49.5) > (rbeta(n_sim, shape1 = 25, shape2 = 75) + x)) / n_sim))
+x = 0.15
+dat = tibble(means = c(sum(rbeta(n_sim, shape1 = 10.5, shape2 = 11.5) > (rbeta(n_sim, shape1 = 25, shape2 = 75) + x)) / n_sim,
+                      sum(rbeta(n_sim, shape1 = 9.5, shape2 = 12.5) > (rbeta(n_sim, shape1 = 25, shape2 = 75) + x)) / n_sim,
+                      sum(rbeta(n_sim, shape1 = 8.5, shape2 = 13.5) > (rbeta(n_sim, shape1 = 25, shape2 = 75) + x)) / n_sim,
+                      sum(rbeta(n_sim, shape1 = 7.5, shape2 = 14.5) > (rbeta(n_sim, shape1 = 25, shape2 = 75) + x)) / n_sim,
+                      # sum(rbeta(n_sim, shape1 = 8.5, shape2 = 13.5) > (rbeta(n_sim, shape1 = 25, shape2 = 75) + x)) / n_sim,
+                      # sum(rbeta(n_sim, shape1 = 7.5, shape2 = 36.5) > (rbeta(n_sim, shape1 = 25, shape2 = 75) + x)) / n_sim,
+                      sum(rbeta(n_sim, shape1 = 4.5, shape2 = 7.5) > (rbeta(n_sim, shape1 = 25, shape2 = 75) + x)) / n_sim,
+                      sum(rbeta(n_sim, shape1 = 3.5, shape2 = 8.5) > (rbeta(n_sim, shape1 = 25, shape2 = 75) + x)) / n_sim))
 dat
-```0
+```
 
 ```{r}
 means = vector(mode = "list", length = 24)
