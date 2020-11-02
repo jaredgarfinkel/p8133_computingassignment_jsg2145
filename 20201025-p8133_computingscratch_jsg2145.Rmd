@@ -1129,3 +1129,100 @@ res = prior()
 ```{r}
 res
 ```
+
+
+```{r}
+prior6 = function(df = df5, null = 0.25, stage1n = 20, stage2n = 20, stage3n = 20, stage4n = 11) {
+  res6 = df %>% 
+    mutate(pE1 = qbeta(null, (0.5+n1_response), (1.5+stage1n-n1_response)),
+           pE2 = qbeta(null, (0.5+n2_response), (1.5+stage2n-n2_response)),
+           pE3 = qbeta(null, (0.5+n3_response), (1.5+stage3n-n3_response)),
+           pE4 = qbeta(null, (0.5+n4_response), (1.5+stage4n-n4_response)))
+           # pS = dbeta(null+pull(df, x), 25, 75))
+    # filter(n1_response > n1-1,
+    #        (n1_response + n2_response) > n2-1,
+    #        (n1_response + n2_response + n3_response) > n3-1,
+    #        (n1_response + n2_response + n3_response + n4_response) > n4-1)
+  return(res6)
+}
+```
+
+
+```{r}
+map_df6 = df5 %>% 
+  mutate(data = map(data, prior6))
+```
+
+```{r}
+map_df6_nested = map_df6 %>% 
+  mutate(pS = qbeta(.25, shape1 = 25, shape2 = 75)) %>% 
+  unnest() %>% 
+  group_by(x, n1_response, n2_response, n3_response, n4_response) %>% 
+  mutate(alpha1 = (pE1 > pS + x),
+         alpha2 = (pE2 > pS + x),
+         alpha3 = (pE3 > pS + x),
+         alpha4 = (pE4 > pS + x)) %>% 
+  ungroup() %>%
+  group_by(n1_response, n2_response, n3_response, n4_response) %>%
+  nest()
+#   return(res61)
+# }
+```
+
+```{r}
+map_df61_nested = map_df6_nested %>% 
+  mutate(data = map(data, ~filter(., alpha1 > 0.2,
+                                  alpha2 > 0.2,
+                                  alpha3 > 0.2,
+                                  alpha4 > 0.2)))
+```
+
+```{r}
+map_df61_nested %>% 
+  unnest() %>% 
+  select(x, n1_response, n2_response, n3_response, n4_response, pE1, pE2, pE3, pE4, pS, alpha1, alpha2, alpha3, alpha4) %>% 
+  distinct() %>% 
+  filter(x == 0.15) %>% 
+  head()
+```
+
+```{r, eval = FALSE}
+# nmx1 = map_df51 %>% 
+#   group_by(x, n2, n3) %>%
+#   summarize(nm = n()) 
+dist5 = map_df51 %>% 
+  # left_join(nmx1, by = c("x", "n2", "n3"), copy = TRUE) %>% 
+  # filter(pE1>pS,
+  #        pE2>pS,
+  #        pE3>pS,
+  #        pE4>pS) %>%
+  group_by(x, n1_response, n2_response, n3_response, n4_response) %>%
+  summarize(n = n(),
+            alpha1 = sum(pE1 > pS)/n,
+            alpha2 = sum(pE2 > pS)/n,
+            alpha3 = sum(pE3 > pS)/n,
+            alpha4 = sum(pE4 > pS)/n)
+  # filter(alpha1 < 0.5,
+  #        alpha2 < 0.5,
+  #        alpha3 < 0.5,
+  #        alpha4 < 0.5) %>%
+```
+
+
+```{r, eval = FALSE}
+gg5 = map_df51$data[[7]] %>% 
+  ggplot(aes(x = x)) +
+  geom_line(aes(y = alpha1), color = "red") + 
+  geom_line(aes(y = alpha2), color = "orange") +
+  geom_line(aes(y = alpha3), color = "yellow") +
+  geom_line(aes(y = alpha4), color = "green") +
+  facet_grid(n2~n3)
+```
+
+```{r, eval = FALSE}
+map_df51 %>% 
+  filter(abs(pE1 - pE4) < 10e-4,
+         abs(pE1 - pE2) < 10e-3,
+         abs(pE1 - pE3) < 10e-3)
+
+```
